@@ -4,57 +4,136 @@ Hosted checkout integration for [hutko](https://hutko.org/) and osCommerce v4.
 
 ## Features
 
-- creates a signed hosted-checkout session through `https://pay.hutko.org/api/checkout/url`
-- signs API requests and validates callback signatures
-- checks the Merchant ID, order ID, amount, currency and approved purchase status before marking an order paid
-- safely acknowledges duplicate and non-approved callbacks without fulfilling the order
-- displays a responsive hutko logo and payment label that adapt to the checkout width
-- supports payment-zone filtering
+- creates a signed hosted checkout through the hutko API
+- validates callback signatures and payment details
+- verifies the Merchant ID, order ID, amount, currency and payment status before marking an order as paid
+- processes server callbacks independently from the customer's browser return
+- handles repeated callbacks without fulfilling an order twice
+- provides configurable pending and paid order statuses
+- supports payment-zone restrictions
+- displays a responsive hutko logo and payment label at checkout
 
 ## Requirements
 
 - osCommerce v4
 - PHP 8.0 or newer with cURL and JSON
-- an HTTPS storefront
-- hutko Merchant ID and Secret key
+- an HTTPS storefront and HTTPS callback URLs
+- a hutko Merchant ID and Secret key
 
 ## Installation
 
-Copy the contents of `upload/` into the root directory of the osCommerce store, preserving paths. In the osCommerce administrator area, open payment modules, install **hutko**, and configure:
+1. Copy the contents of `upload/` into the root directory of the osCommerce store, preserving the directory structure.
+2. In the osCommerce administrator area, open the payment modules and install **hutko**.
+3. Configure the Merchant ID and Secret key.
+4. Select different pending and paid order statuses.
+5. Configure the payment zone and display order if required.
+6. Under **Restrictions**, select **Available for → Checkout**, then click **Update**.
 
-1. Merchant ID
-2. Secret key
-3. pending and paid order statuses
-4. payment zone and display order, if required
+The payment method will not appear at checkout unless **Available for → Checkout** is selected, even when **Enable hutko** is set to `TRUE`.
 
-In the module's **Restrictions** section, select **Available for → Checkout** and click **Update**. osCommerce will not display hutko as a payment method during checkout unless this checkbox is selected, even when **Enable hutko** is set to `TRUE`.
+## Payment processing
+
+The module creates a signed checkout session through:
+
+`https://pay.hutko.org/api/checkout/url`
+
+After the order is saved, the customer is redirected to the HTTPS checkout URL returned by hutko.
 
 The callback URL is generated automatically:
 
 `https://STORE/callback/webhooks.payment.hutko`
 
-The store must accept HTTPS POST requests to this URL. Payment approval is based only on a backend callback with a valid signature and matching order data; the customer's browser return does not mark the order paid.
+The store must accept HTTPS POST requests to this URL. The server callback is authoritative: an order is marked as paid only after the module validates the signature and confirms that the Merchant ID, order ID, amount, currency and payment status match the stored order.
 
-After osCommerce saves the order, the module creates the hosted checkout through hutko's JSON API and redirects the customer to the HTTPS checkout URL returned by hutko. The module does not include or directly execute the hutko JavaScript SDK.
+The customer return is validated separately. It clears the osCommerce checkout state and redirects the customer to the order-success page, but it does not independently mark the order as paid.
 
-After payment, hutko returns the customer's browser by signed POST to the module's return callback. The module validates the response, clears the osCommerce checkout state, and redirects the customer to checkout success. Payment approval is processed separately through the signed server callback and never depends on the browser return.
+Use different statuses for pending and paid orders. The pending status applies while the customer is completing payment; the paid status applies only after a valid approved callback.
 
-Both the storefront and generated callback URLs must use HTTPS. hutko's hosted checkout uses a legacy compatibility proxy for plain-HTTP `response_url` values; therefore `http://localhost` is not a valid end-to-end redirect test. Configure HTTPS in the local web server or use an HTTPS tunnel.
+## Local testing
 
-Use different order statuses for the two payment stages: a pending/redirected status while the customer is at the payment gateway and the store's successful online-payment status after an approved callback.
+End-to-end return testing requires HTTPS. A plain `http://localhost` return URL is not supported by the hosted checkout flow. Configure HTTPS in the local web server or use an HTTPS tunnel.
 
 ## Official test credentials
-
-For testing, enter hutko's published credentials directly in the module configuration:
 
 - Merchant ID: `1700002`
 - Secret key: `test`
 - Currency: `UAH`
 
-There is no separate sandbox endpoint. Test requests use the normal hutko API endpoint. Replace the test credentials with the merchant's own Merchant ID and Secret key before production use.
+There is no separate sandbox endpoint. Test payments use the standard hutko API endpoint. Replace the test credentials with the merchant's own Merchant ID and Secret key before production use.
 
-See the [hutko documentation](https://docs.hutko.org/) for test cards and API details.
+See the [hutko documentation](https://docs.hutko.org/) for test-card details and API information.
 
 ## License
 
 GNU General Public License v3.0 or later. See [LICENSE](LICENSE).
+
+---
+
+# Платіжний модуль hutko для osCommerce v4
+
+Інтеграція платіжної сторінки [hutko](https://hutko.org/) з osCommerce v4.
+
+## Можливості
+
+- створення підписаної платіжної сесії через API hutko
+- перевірка підписів і параметрів платіжних повідомлень
+- перевірка Merchant ID, номера замовлення, суми, валюти та статусу платежу перед позначенням замовлення як оплаченого
+- незалежна обробка серверних повідомлень і повернення покупця до магазину
+- безпечна обробка повторних повідомлень без повторного виконання замовлення
+- окремі налаштування статусів для очікування та успішної оплати
+- обмеження способу оплати за платіжною зоною
+- адаптивний логотип hutko та назва способу оплати на сторінці оформлення замовлення
+
+## Вимоги
+
+- osCommerce v4
+- PHP 8.0 або новіша версія з модулями cURL і JSON
+- сайт і адреси зворотних повідомлень із підтримкою HTTPS
+- Merchant ID та Secret key hutko
+
+## Встановлення
+
+1. Скопіюйте вміст каталогу `upload/` до кореневого каталогу магазину osCommerce зі збереженням структури каталогів.
+2. У панелі адміністратора osCommerce відкрийте платіжні модулі та встановіть **hutko**.
+3. Укажіть Merchant ID та Secret key.
+4. Виберіть різні статуси для замовлень, що очікують на оплату, та оплачених замовлень.
+5. За потреби налаштуйте платіжну зону та порядок відображення.
+6. У розділі **Restrictions** виберіть **Available for → Checkout** і натисніть **Update**.
+
+Спосіб оплати не відображатиметься під час оформлення замовлення, доки не вибрано **Available for → Checkout**, навіть якщо параметр **Enable hutko** має значення `TRUE`.
+
+## Обробка платежу
+
+Модуль створює підписану платіжну сесію через:
+
+`https://pay.hutko.org/api/checkout/url`
+
+Після збереження замовлення покупець переходить на захищену платіжну сторінку за HTTPS-адресою, отриманою від hutko.
+
+Адреса для зворотних повідомлень створюється автоматично:
+
+`https://STORE/callback/webhooks.payment.hutko`
+
+Магазин повинен приймати HTTPS POST-запити за цією адресою. Серверне повідомлення є основним джерелом статусу платежу: замовлення позначається як оплачене лише після перевірки підпису та відповідності Merchant ID, номера замовлення, суми, валюти й статусу платежу даним збереженого замовлення.
+
+Повернення покупця перевіряється окремо. Воно очищає стан оформлення замовлення в osCommerce та перенаправляє покупця на сторінку успішного замовлення, але самостійно не позначає замовлення як оплачене.
+
+Використовуйте різні статуси для очікування та успішної оплати. Статус очікування застосовується, поки покупець виконує оплату; статус оплати встановлюється лише після отримання коректного повідомлення про успішний платіж.
+
+## Локальне тестування
+
+Для повної перевірки повернення покупця потрібен HTTPS. Платіжна сторінка не підтримує повернення на звичайну адресу `http://localhost`. Налаштуйте HTTPS на локальному вебсервері або використовуйте HTTPS-тунель.
+
+## Офіційні тестові дані
+
+- Merchant ID: `1700002`
+- Secret key: `test`
+- Валюта: `UAH`
+
+Окремого тестового API немає. Тестові платежі виконуються через стандартну адресу API hutko. Перед використанням у робочому магазині замініть тестові дані на власні Merchant ID та Secret key продавця.
+
+Дані тестових карток і додаткову інформацію про API наведено в [документації hutko](https://docs.hutko.org/uk/).
+
+## Ліцензія
+
+GNU General Public License версії 3.0 або новішої. Дивіться файл [LICENSE](LICENSE).
